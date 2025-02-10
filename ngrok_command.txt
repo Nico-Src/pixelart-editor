@@ -1,0 +1,1 @@
+ngrok http --domain=valued-impala-optimum.ngrok-free.app 3002

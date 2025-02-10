@@ -1,0 +1,42 @@
+{
+  "name": "nuxt-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev --host",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "latest",
+    "@nuxtjs/google-fonts": "^3.0.2",
+    "@nuxtjs/robots": "^3.0.0",
+    "@primevue/nuxt-module": "^4.1.1",
+    "nuxt": "^3.7.4",
+    "nuxt-icon": "^0.5.0",
+    "nuxt-quasar-ui": "^2.0.6",
+    "nuxt-security": "^0.14.4",
+    "nuxt-snackbar": "^1.0.3",
+    "vue": "^3.3.4",
+    "vue-router": "^4.2.5"
+  },
+  "dependencies": {
+    "@nuxt/image": "^1.0.0-rc.3",
+    "@ohdoki/handy-sdk": "^2.3.4",
+    "@primevue/themes": "^4.1.1",
+    "@websitebeaver/vue-magnifier": "^1.1.0",
+    "funscript-utils": "^1.1.3",
+    "moment": "^2.29.4",
+    "next-auth": "4.21.1",
+    "pinia": "^2.1.7",
+    "primeicons": "^7.0.0",
+    "primevue": "^4.1.1",
+    "three": "^0.134.0",
+    "tld-extract": "^2.1.0",
+    "uninstall": "^0.0.0",
+    "vue-draggable-plus": "^0.2.6",
+    "vuedraggable": "^4.1.0"
+  }
+}
