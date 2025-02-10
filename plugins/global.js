@@ -69,7 +69,8 @@ class Canvas{
 
         // mouse down listener
         this.layers.main.el.value.addEventListener("mousedown", (e) => {
-            if(this.mouse.lock !== LOCK_STATE.NONE){
+            // if mouse is locked for drawing on an axis return here and just set mouse down
+            if(this.mouse.lock.value !== LOCK_STATE.NONE){
                 this.mouse.down = true;
                 return;
             }
@@ -93,6 +94,7 @@ class Canvas{
                     // get color at given position
                     this.selectedColor.value = this.grid[pickedX][pickedY].color.replace('#', '');
                     this.selectedRgb = this.hexToRgb(this.selectedColor.value);
+                    console.log(this.selectedColor.value)
                     break;
                 case TOOLS.MOVE:
                     this.mouse.down = true;
@@ -113,7 +115,7 @@ class Canvas{
             if (e.altKey && this.mouse.lock.value === LOCK_STATE.NONE) this.mouse.lock.value = LOCK_STATE.VERTICAL;
             // lock y axis if Shift is held
             if (e.shiftKey && this.mouse.lock.value === LOCK_STATE.NONE) this.mouse.lock.value = LOCK_STATE.HORIZONTAL;
-
+            // if none of the above are held, unlock
             if(!e.shiftKey && !e.altKey) this.mouse.lock.value = LOCK_STATE.NONE;
 
             // Update previous mouse position *after* calculations
@@ -124,11 +126,17 @@ class Canvas{
             if (this.mouse.lock.value !== LOCK_STATE.VERTICAL) this.mouse.x = currentX;
             if (this.mouse.lock.value !== LOCK_STATE.HORIZONTAL) this.mouse.y = currentY;
 
+            // if mouse is down execute tools action
             if(this.mouse.down){
-                // choose color based on tool (eraser, or pencil)
-                const newColor = this.tool.value === TOOLS.PENCIL ? `#${this.selectedColor.value}` : `#${this.bg.value}`;
-                this.paint(newColor, this.mouse.x, this.mouse.y, this.toolSize.value);
-                this.render();
+                switch(this.tool.value){
+                    case TOOLS.PENCIL:
+                    case TOOLS.ERASER:
+                        // choose color based on tool (eraser, or pencil)
+                        const newColor = this.tool.value === TOOLS.PENCIL ? `#${this.selectedColor.value}` : `#${this.bg.value}`;
+                        this.paint(newColor, this.mouse.x, this.mouse.y, this.toolSize.value);
+                        this.render();
+                        break;
+                }
             }
         });
 
@@ -139,6 +147,7 @@ class Canvas{
         });
 
         this.window.onkeydown = (e) => {
+            // initialize hotkeys
             for(const key of Object.keys(HOTKEYS)){
                 if(HOTKEYS[key].ctrlKey === e.ctrlKey && HOTKEYS[key].key === e.key){
                     e.preventDefault();
@@ -242,6 +251,8 @@ class Canvas{
 
     renderMouse(){
         requestAnimationFrame(() => this.renderMouse());
+
+        // draw mouse cursor (rect if toolSize is 1 or circle if toolSize is > 1)
         this.layers.mouse.ctx.clearRect(0, 0, this.layers.mouse.el.value.width, this.layers.mouse.el.value.height);
         if(this.tool.value === TOOLS.ERASER) this.layers.mouse.ctx.fillStyle = `rgba(255, 0, 0, .5)`;
         else this.layers.mouse.ctx.fillStyle = `rgba(${this.selectedRgb.r}, ${this.selectedRgb.g}, ${this.selectedRgb.b}, .5)`;
@@ -253,7 +264,6 @@ class Canvas{
 
         // if mouse is locked draw a vertical or horizontal line at the locked axis
         if(this.mouse.lock.value !== LOCK_STATE.NONE){
-            // aqua
             this.layers.mouse.ctx.strokeStyle = `aqua`;
             this.layers.mouse.ctx.beginPath();
             if(this.mouse.lock.value === LOCK_STATE.VERTICAL) this.layers.mouse.ctx.moveTo((this.mouse.x * CELL_WIDTH) + (CELL_WIDTH / 2), 0);
@@ -267,7 +277,8 @@ class Canvas{
 
     markCellDirty(x, y){
         this.grid[x][y].dirty = true;
-        this.dirtyCells.add(`${x},${y}`); // Add the cell to the dirty set using a unique key
+        // Add the cell to the dirty set using a unique key
+        this.dirtyCells.add(`${x},${y}`);
     }
 
     
@@ -284,6 +295,7 @@ class Canvas{
         const centerX = x;
         const centerY = y;
     
+        // if radius is one just paint the one cell
         if(radius === 1){
             const cellX = centerX;
             const cellY = centerY;
@@ -307,6 +319,7 @@ class Canvas{
             return;
         }
     
+        // otherwise fill in circle around the cursor
         const actualRadius = radius-1;
         for (let iX = -actualRadius; iX <= actualRadius; iX++) {
             for (let iY = -actualRadius; iY <= actualRadius; iY++) {
@@ -345,6 +358,7 @@ class Canvas{
     }
 
     open(){
+        // create file input
         const input = document.createElement('input');
         input.type = 'file';
         // only accept files with .pxl extension
@@ -370,10 +384,12 @@ class Canvas{
                 this.redoHistory = JSON.parse(obj.redoHistory);
                 this.markAllDirty();
                 this.render();
+                // show success message
                 this.toast.add({ severity: 'success', summary: 'Project opened successfully', detail: `Project "${this.projectName.value}" has successfully been opened.`, life: 3000 });
             };
             reader.readAsText(file);
         };
+        // click on input to show file dialog
         input.click();
     }
 
@@ -390,6 +406,7 @@ class Canvas{
             undoHistory: JSON.stringify(this.undoHistory || []), 
             redoHistory: JSON.stringify(this.redoHistory || [])
         };
+        // save json to file and download
         const json = JSON.stringify(obj);
         const blob = new Blob([json], {type: 'application/json'});
         const url = URL.createObjectURL(blob);
@@ -398,9 +415,11 @@ class Canvas{
         a.download = `${this.projectName.value}.pxl`;
         a.click();
         URL.revokeObjectURL(url);
+        // show success message
         this.toast.add({ severity: 'success', summary: 'Project saved successfully', detail: `Project "${this.projectName.value}" has successfully been saved.`, life: 3000 });
     }
 
+    // convert hex to rgb
     hexToRgb(hex){
         var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
         return result ? {

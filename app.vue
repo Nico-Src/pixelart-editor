@@ -5,10 +5,6 @@ import 'primeicons/primeicons.css';
 const isMounted = ref(false);
 const app = useNuxtApp();
 
-const nav = (to) => {
-    if(to) navigateTo(to);
-}
-
 onMounted(()=>{
     isMounted.value = true;
 });
