@@ -9,6 +9,8 @@ const TOOLS = app.$data.TOOLS;
 const HOTKEYS = app.$data.HOTKEYS;
 import { useToast } from "primevue/usetoast";
 const toast = useToast();
+import Terminal from 'primevue/terminal';
+import TerminalService from 'primevue/terminalservice'
 
 const isMounted = ref(false);
 const canvasEl = ref(null);
@@ -20,6 +22,7 @@ const undoHistory = ref([]);
 const redoHistory = ref([]);
 
 const showCreateNew = ref(true);
+const showTerminal = ref(false);
 
 const menuItems = ref([
     {label: 'File', items: [
@@ -27,7 +30,11 @@ const menuItems = ref([
         {label: 'New', icon: 'pi pi-fw pi-file', command: () => {showCreateNew.value = true;}},
         {label: 'Export Image', icon: 'pi pi-fw pi-file-export', command: () => {canvas.export();}},
         {label: 'Save', icon: 'pi pi-fw pi-save', command: () => {canvas.save();}},
-    ]},
+    ]},{
+        label: 'View', items: [
+            {label: computed(() => showTerminal.value ? 'Hide Terminal' : 'Show Terminal'), icon: 'pi pi-desktop', command: () => {showTerminal.value = !showTerminal.value;}},
+        ]
+    }
 ]);
 
 const newCanvasWidth = ref(50);
@@ -76,6 +83,7 @@ const gridUpdate = () => {
 
 const colorChange = (val) => {
     const rgb = canvas.hexToRgb(val);
+    canvas.selectedColor.value = val.includes('#') ? val.replace('#', '') : val;
     canvas.selectedRgb = rgb;
 }
 
@@ -84,10 +92,128 @@ const getHotkeyForKey = (key) => {
     return hotkey ? `${hotkey.ctrlKey ? 'Ctrl + ' : ''}${hotkey.key.toUpperCase()}` : '';
 }
 
+const handleCommand = (text) => {
+    let response;
+    const argsIndex = text.indexOf(' ');
+    const command = argsIndex !== -1 ? text.substring(0, argsIndex) : text;
+    const args = argsIndex !== -1 ? text.substring(argsIndex + 1).split(' ') : '';
+    console.log(args)
+
+    switch(command) {
+        case "date":
+            response = 'Today is ' + new Date().toDateString();
+            break;
+
+        case "color-pick":
+            if(args.length < 2){
+                response = 'Invalid arguments. Usage: color-pick <x> <y>';
+                break;
+            }
+            const x = parseInt(args[0]);
+            const y = parseInt(args[1]);
+            if(isNaN(x) || isNaN(y)){
+                response = 'Invalid arguments. Usage: color-pick <x> <y>';
+                break;
+            }
+            if(x < 0 || x >= canvas.grid.length || y < 0 || y >= canvas.grid[0].length){
+                response = `Arguments out of bounds. Usage: color-pick <x> <y>, x and y must be between 0 and the width and height of the grid (${canvas.grid.length}x${canvas.grid[0].length})`;
+                break;
+            }
+            response = `Color picked at ${args[0]} ${args[1]} is ${canvas.grid[args[0]][args[1]].color}`;
+            break;
+
+        case "paint": 
+            if(args.length < 3){
+                response = 'Invalid arguments. Usage: paint <color> <x> <y>';
+                break;
+            }
+            const color = args[0];
+            const px = parseInt(args[1]);
+            const py = parseInt(args[2]);
+            if(isNaN(px) || isNaN(py)){
+                response = 'Invalid arguments. Usage: paint <color> <x> <y>';
+                break;
+            }
+            if(px < 0 || px >= canvas.grid.length || py < 0 || py >= canvas.grid[0].length){
+                response = `Arguments out of bounds. Usage: paint <color> <x> <y>, x and y must be between 0 and the width and height of the grid (${canvas.grid.length}x${canvas.grid[0].length})`;
+                break;
+            }
+
+            canvas.grid[px][py].color = color;
+            canvas.markCellDirty(px,py);
+            canvas.render();
+
+            response = `Painted ${args[0]} at ${args[1]} ${args[2]}`;
+            break;
+
+        case "paint-rect":
+            if(args.length < 6){
+                response = 'Invalid arguments. Usage: paint-rect <color> <x> <y> <width> <height> <filled | outline>';
+                break;
+            }
+            const rectColor = args[0];
+            const rectX = parseInt(args[1]);
+            const rectY = parseInt(args[2]);
+            const rectWidth = parseInt(args[3]);
+            const rectHeight = parseInt(args[4]);
+            const rectStyle = args[5];
+            if(rectStyle !== 'filled' && rectStyle !== 'outline'){
+                response = 'Invalid arguments. Usage: paint-rect <color> <x> <y> <width> <height> <filled | outline>';
+                break;
+            }
+            if(isNaN(rectX) || isNaN(rectY) || isNaN(rectWidth) || isNaN(rectHeight)){
+                response = 'Invalid arguments. Usage: paint-rect <color> <x> <y> <width> <height> <filled | outline>';
+                break;
+            }
+
+            if(rectX < 0 || rectX >= canvas.grid.length || rectY < 0 || rectY >= canvas.grid[0].length){
+                response = `Arguments out of bounds. Usage: paint-rect <color> <x> <y> <width> <height> <filled | outline>, x and y must be between 0 and the width and height of the grid (${canvas.grid.length}x${canvas.grid[0].length})`;
+                break;
+            }
+
+            for(let x = rectX; x < rectX + rectWidth; x++){
+                for(let y = rectY; y < rectY + rectHeight; y++){
+                    if(x < 0 || x >= canvas.grid.length || y < 0 || y >= canvas.grid[0].length){
+                        continue;
+                    }
+
+                    if(rectStyle === 'outline'){
+                        if(x === rectX || x === rectX + rectWidth - 1 || y === rectY || y === rectY + rectHeight - 1){
+                            canvas.grid[x][y].color = rectColor;
+                            canvas.markCellDirty(x,y);
+                        } else continue;
+                    } else {
+                        canvas.grid[x][y].color = rectColor;
+                        canvas.markCellDirty(x,y);
+                    }
+                }
+            }
+            canvas.render();
+
+            response = `Painted ${args[0]} at ${args[1]} ${args[2]} with width ${args[3]} and height ${args[4]}`;
+            break;
+
+        case "random":
+            response = Math.floor(Math.random() * 100);
+            break;
+
+        default:
+            response = "Unknown command: " + command;
+    }
+
+    TerminalService.emit('response', response);
+};
+
 onMounted(() => {
     // init canvas
     canvas.initClass(canvasEl, gridCanvas, mouseCanvas, window, toast);
     isMounted.value = true;
+
+    TerminalService.on('command', handleCommand);
+});
+
+onBeforeUnmount(() => {
+    TerminalService.off('command', handleCommand);
 });
 </script>
 <template>
@@ -98,6 +224,8 @@ onMounted(() => {
                 {{ canvas.projectName.value }}
             </template>
         </Menubar>
+
+        <Terminal :class="`terminal ${showTerminal ? 'active' : ''}`" welcomeMessage="Welcome to Pixel-Editor" prompt="pxl $" aria-label="Pixel-Editor Terminal Service"/>
 
         <div class="content-wrapper">
             <div id="tools">
@@ -124,7 +252,12 @@ onMounted(() => {
             </div>
 
             <div id="palette">
-                <ColorPicker v-model="canvas.selectedColor.value" inputId="cp-hex" format="hex" class="mb-4" v-if="isMounted" @update:model-value="colorChange"/>
+                <div class="color-wrapper" v-auto-animate>
+                    <div class="color" v-for="color in canvas.colorPalette.value" :key="color" :style="`background-color: ${color};`" @click="colorChange(color)"></div>
+                    <div class="color" style="background-color: #505050;" v-if="canvas.colorPalette.value.length === 0"></div>
+                </div>
+                <ColorPicker style="margin-top: 10px;" v-model="canvas.selectedColor.value" inputId="cp-hex" format="hex" class="mb-4" @update:model-value="colorChange"/>
+                <div class="mouse-coords" style="margin-top: auto; color: #ccc; width: 100%; font-size: 10px; text-align: end;">{{ canvas.mouse.x }}, {{ canvas.mouse.y }}</div>
             </div>
         </div>
 
@@ -223,7 +356,7 @@ onMounted(() => {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
         background-color: #303030;
         padding: 10px;
         gap: 10px;
@@ -252,14 +385,61 @@ onMounted(() => {
     }
 
     #palette{
+        width: 150px;
         height: 100%;
         margin: auto;
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
         background-color: #303030;
         padding: 10px;
+        padding: 10px;
+
+        .color-wrapper{
+            width: 100%;
+            background-color: #505050;
+            border-radius: 6px;
+            display:flex;
+            justify-content: flex-start;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 5px;
+            padding: 5px;
+
+            .color{
+                padding: 5px;
+                width: calc(20% - 4px);
+                aspect-ratio: 1;
+                border-radius: 6px;
+                cursor: pointer;
+                will-change: transform;
+                transition: transform var(--transition-duration) ease, border-radius var(--transition-duration) ease;
+
+                &:hover{
+                    transform: scale(.9);
+                    border-radius: 50%;
+                }
+            }
+        }
+    }
+
+    .terminal{
+        width: 100%;
+        height: 30%;
+        position: fixed;
+        z-index: 200;
+        bottom: 0;
+        left: 0;
+        border-radius: 10px 10px 0 0;
+        transition: transform var(--transition-duration) ease;
+        transform: translateY(100%);
+        pointer-events: none;
+
+        &.active{
+            transform: translateY(0);
+            pointer-events: all;
+        }
     }
 }
 

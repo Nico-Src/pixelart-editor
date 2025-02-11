@@ -33,7 +33,7 @@ const HOTKEYS = {
 class Canvas{
     constructor(){
         this.transform = {x:0,y:0,scale:1,scaleRatio:1,w:0,h:0};
-        this.mouse = {down:false, x: 0, y: 0, prev: { x: 0, y: 0 }, lock: ref(LOCK_STATE.NONE)};
+        this.mouse = {down:false, x: ref(-100), y: ref(-100), prev: { x: 0, y: 0 }, lock: ref(LOCK_STATE.NONE)};
         this.tool = ref(TOOLS.PENCIL);
         this.toolSize = ref(1);
         this.bg = ref('ffffff');
@@ -42,6 +42,7 @@ class Canvas{
         this.selectedRgb = {r: 0, g: 0, b: 0};
         this.dirtyCells = new Set();
         this.showGrid = ref(true);
+        this.colorPalette = ref([]);
         this.projectName = ref('untitled');
     }
 
@@ -119,12 +120,12 @@ class Canvas{
             if(!e.shiftKey && !e.altKey) this.mouse.lock.value = LOCK_STATE.NONE;
 
             // Update previous mouse position *after* calculations
-            this.mouse.prev.x = this.mouse.x;
-            this.mouse.prev.y = this.mouse.y;
+            this.mouse.prev.x = this.mouse.x.value;
+            this.mouse.prev.y = this.mouse.y.value;
 
             // Set new mouse position
-            if (this.mouse.lock.value !== LOCK_STATE.VERTICAL) this.mouse.x = currentX;
-            if (this.mouse.lock.value !== LOCK_STATE.HORIZONTAL) this.mouse.y = currentY;
+            if (this.mouse.lock.value !== LOCK_STATE.VERTICAL) this.mouse.x.value = currentX;
+            if (this.mouse.lock.value !== LOCK_STATE.HORIZONTAL) this.mouse.y.value = currentY;
 
             // if mouse is down execute tools action
             if(this.mouse.down){
@@ -133,7 +134,7 @@ class Canvas{
                     case TOOLS.ERASER:
                         // choose color based on tool (eraser, or pencil)
                         const newColor = this.tool.value === TOOLS.PENCIL ? `#${this.selectedColor.value}` : `#${this.bg.value}`;
-                        this.paint(newColor, this.mouse.x, this.mouse.y, this.toolSize.value);
+                        this.paint(newColor, this.mouse.x.value, this.mouse.y.value, this.toolSize.value);
                         this.render();
                         break;
                 }
@@ -142,8 +143,8 @@ class Canvas{
 
         this.layers.main.el.value.addEventListener("mouseleave", (e)=>{
             // move mouse pos out of bounds (to hide renderer cursor)
-            this.mouse.x = -100;
-            this.mouse.y = -100;
+            this.mouse.x.value = -100;
+            this.mouse.y.value = -100;
         });
 
         this.window.onkeydown = (e) => {
@@ -167,7 +168,7 @@ class Canvas{
     
         this.window.onresize = () => {
             // calc ratio of width of window vs canvas
-            this.transform.scaleRatio = this.el.value.width / this.el.value.getBoundingClientRect().width;
+            this.transform.scaleRatio = this.layers.main.el.value.width / this.layers.main.el.value.getBoundingClientRect().width;
             // rerender every cell
             this.markAllDirty();
         }
@@ -258,18 +259,18 @@ class Canvas{
         else this.layers.mouse.ctx.fillStyle = `rgba(${this.selectedRgb.r}, ${this.selectedRgb.g}, ${this.selectedRgb.b}, .5)`;
         this.layers.mouse.ctx.beginPath();
         // the rect should be the size of the brush (but in a circle like when painting)
-        if(this.toolSize.value === 1) this.layers.mouse.ctx.rect(this.mouse.x * CELL_WIDTH, this.mouse.y * CELL_WIDTH, CELL_WIDTH, CELL_WIDTH);
-        else this.layers.mouse.ctx.ellipse((this.mouse.x * CELL_WIDTH) + (CELL_WIDTH / 2), (this.mouse.y * CELL_WIDTH) + (CELL_WIDTH / 2), (this.toolSize.value - .5) * CELL_WIDTH, (this.toolSize.value - .5) * CELL_WIDTH, 0, 0, Math.PI*2);
+        if(this.toolSize.value === 1) this.layers.mouse.ctx.rect(this.mouse.x.value * CELL_WIDTH, this.mouse.y.value * CELL_WIDTH, CELL_WIDTH, CELL_WIDTH);
+        else this.layers.mouse.ctx.ellipse((this.mouse.x.value * CELL_WIDTH) + (CELL_WIDTH / 2), (this.mouse.y.value * CELL_WIDTH) + (CELL_WIDTH / 2), (this.toolSize.value - .5) * CELL_WIDTH, (this.toolSize.value - .5) * CELL_WIDTH, 0, 0, Math.PI*2);
         this.layers.mouse.ctx.fill();
 
         // if mouse is locked draw a vertical or horizontal line at the locked axis
         if(this.mouse.lock.value !== LOCK_STATE.NONE){
             this.layers.mouse.ctx.strokeStyle = `aqua`;
             this.layers.mouse.ctx.beginPath();
-            if(this.mouse.lock.value === LOCK_STATE.VERTICAL) this.layers.mouse.ctx.moveTo((this.mouse.x * CELL_WIDTH) + (CELL_WIDTH / 2), 0);
-            else this.layers.mouse.ctx.moveTo(0, (this.mouse.y * CELL_WIDTH) + (CELL_WIDTH / 2));
-            if(this.mouse.lock.value === LOCK_STATE.VERTICAL) this.layers.mouse.ctx.lineTo((this.mouse.x * CELL_WIDTH) + (CELL_WIDTH / 2), this.layers.mouse.el.value.height);
-            else this.layers.mouse.ctx.lineTo(this.layers.mouse.el.value.width, (this.mouse.y * CELL_WIDTH) + (CELL_WIDTH / 2));
+            if(this.mouse.lock.value === LOCK_STATE.VERTICAL) this.layers.mouse.ctx.moveTo((this.mouse.x.value * CELL_WIDTH) + (CELL_WIDTH / 2), 0);
+            else this.layers.mouse.ctx.moveTo(0, (this.mouse.y.value * CELL_WIDTH) + (CELL_WIDTH / 2));
+            if(this.mouse.lock.value === LOCK_STATE.VERTICAL) this.layers.mouse.ctx.lineTo((this.mouse.x.value * CELL_WIDTH) + (CELL_WIDTH / 2), this.layers.mouse.el.value.height);
+            else this.layers.mouse.ctx.lineTo(this.layers.mouse.el.value.width, (this.mouse.y.value * CELL_WIDTH) + (CELL_WIDTH / 2));
             this.layers.mouse.ctx.lineWidth = 2;
             this.layers.mouse.ctx.stroke();
         }
@@ -311,6 +312,7 @@ class Canvas{
     
                     // Update cell color
                     this.grid[cellX][cellY].color = newColor;
+                    if(this.colorPalette.value.indexOf(newColor) === -1) this.colorPalette.value.push(newColor);
     
                     // Mark cell as dirty
                     this.markCellDirty(cellX, cellY);
@@ -339,6 +341,7 @@ class Canvas{
     
                             // Update cell color
                             this.grid[cellX][cellY].color = newColor;
+                            if(this.colorPalette.value.indexOf(newColor) === -1) this.colorPalette.value.push(newColor);
     
                             // Mark cell as dirty
                             this.markCellDirty(cellX, cellY);
@@ -373,6 +376,7 @@ class Canvas{
                 this.projectName.value = obj.name;
                 this.selectedRgb = obj.selectedRgb;
                 this.selectedColor.value = obj.selectedColor;
+                this.colorPalette.value = obj.colorPalette;
                 this.bg.value = obj.bg;
                 this.grid = JSON.parse(obj.grid.cells);
                 this.gridColor.value = obj.grid.color;
@@ -398,6 +402,7 @@ class Canvas{
             name: this.projectName.value, 
             selectedColor: this.selectedColor.value,
             selectedRgb: this.selectedRgb,
+            colorPalette: this.colorPalette.value,
             bg: this.bg.value,
             grid: {width: this.transform.w, height: this.transform.h, cells: JSON.stringify(this.grid), color: this.gridColor.value}, 
             showGrid: this.showGrid.value, 

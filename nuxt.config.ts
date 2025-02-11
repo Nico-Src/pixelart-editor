@@ -29,7 +29,7 @@ export default defineNuxtConfig({
                 wght: [100,200,300,400,500,600,700,800,900]
             }
         }
-    }], 'nuxt-icon', '@nuxt/image', 'nuxt-snackbar', '@nuxtjs/robots', '@primevue/nuxt-module'],
+    }], 'nuxt-icon', '@nuxt/image', 'nuxt-snackbar', '@nuxtjs/robots', '@primevue/nuxt-module','@formkit/auto-animate/nuxt'],
     plugins: [
         { src: '~/plugins/global.js', mode: 'client' }
     ],
