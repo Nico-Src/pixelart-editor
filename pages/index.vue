@@ -197,6 +197,22 @@ const handleCommand = (text) => {
             response = Math.floor(Math.random() * 100);
             break;
 
+        case "help":
+            const commands = [
+                {command: 'date', description: 'Prints the current date.', format: 'date'},
+                {command: 'color-pick', description: 'Prints the color at the specified coordinates.', format: 'color-pick <x> <y>'},
+                {command: 'paint', description: 'Paints the specified color at the specified coordinates.', format: 'paint <color> <x> <y>'},
+                {command: 'paint-rect', description: 'Paints the specified color within the specified rectangle.', format: 'paint-rect <color> <x> <y> <width> <height> <filled | outline>'},
+                {command: 'random', description: 'Prints a random number.', format: 'random'},
+                {command: 'help', description: 'Prints this message.', format: 'help'}
+            ];
+            response = `Available commands:\n\n`;
+
+            for(let i = 0; i < commands.length; i++){
+                response += `${commands[i].command} - ${commands[i].description}\n(•) Format: ${commands[i].format}\n\n`;
+            }
+            break;
+
         default:
             response = "Unknown command: " + command;
     }
@@ -471,5 +487,9 @@ onBeforeUnmount(() => {
     height: 100px;
     background-color: #404040;
     border-radius: 12px;
+}
+
+.p-terminal-command-response{
+    white-space: pre-wrap;
 }
 </style>
