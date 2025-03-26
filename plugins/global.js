@@ -356,7 +356,7 @@ class Canvas{
         // download image of canvas
         const link = document.createElement('a');
         link.download = 'canvas.png';
-        link.href = this.el.value.toDataURL('image/png');
+        link.href = this.layers.main.el.value.toDataURL('image/png');
         link.click();
     }
 
